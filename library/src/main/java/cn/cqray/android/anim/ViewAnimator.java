@@ -57,13 +57,9 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
     @NonNull
     @MainThread
     public static AnimatorBuilder playOn(@Nullable LifecycleOwner owner, @NonNull View... targets) {
-        Log.e("数据", 99 + "||0");
         ViewAnimator va = new ViewAnimator(owner);
-        Log.e("数据", 88 + "||0");
         AnimatorBuilder ab = new AnimatorBuilder(va, false, targets);
-        Log.e("数据", 77 + "||0");
         va.mBuilderList.add(ab);
-        Log.e("数据", va.mBuilderList.size() + "||0");
         return ab;
     }
 
@@ -94,7 +90,6 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
     public AnimatorBuilder playThen(@NonNull View... targets) {
         AnimatorBuilder ab = new AnimatorBuilder(this, true, targets);
         mBuilderList.add(ab);
-        Log.e("数据", mBuilderList.size() + "||1");
         return ab;
     }
 
@@ -121,9 +116,6 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
                 startAnimator();
             }
         });
-        Log.e("数据", "55555");
-        final View view = mBuilderList.get(0).getViews().get(0);
-
         doAfterViewReady();
     }
 
@@ -200,12 +192,7 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
 
     private void doAfterViewReady() {
         final View view = mBuilderList.get(0).getViews().get(0);
-        Log.e("数据", "HH|" + view.isLayoutRequested());
-        if (view.getMeasuredWidth() != 0 || view.getMeasuredHeight() != 0) {
-            while (!mActionList.isEmpty()) {
-                mActionList.removeFirst().run();
-            }
-        } else {
+        if (view.getMeasuredWidth() == 0 && view.getMeasuredHeight() == 0) {
             view.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
                 @Override
                 public boolean onPreDraw() {
@@ -216,6 +203,10 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
                     return false;
                 }
             });
+        } else {
+            while (!mActionList.isEmpty()) {
+                mActionList.removeFirst().run();
+            }
         }
     }
 }
