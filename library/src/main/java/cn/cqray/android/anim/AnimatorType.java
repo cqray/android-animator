@@ -1,9 +1,10 @@
 package cn.cqray.android.anim;
 
 /**
- * 动画类型
+ * 属性动画类型
+ * <P>不要修改枚举项名，因为属性动画直接使用的枚举项名</P>
+ * <P>修改之后，属性动画将失效</P>
  * @author Cqray
- * @date 2021/4/7 10:11
  */
 enum AnimatorType {
     /** 透明度 **/ alpha(0),
@@ -18,7 +19,7 @@ enum AnimatorType {
     /** 在Y轴平移 **/ translationY(9);
 
     /** 类型 **/
-    public int type;
+    public final int type;
 
     AnimatorType(int type) {
         this.type = type;

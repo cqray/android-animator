@@ -2,7 +2,6 @@ package cn.cqray.android.anim;
 
 import android.animation.ObjectAnimator;
 import android.animation.PropertyValuesHolder;
-import android.animation.ValueAnimator;
 import android.content.res.Resources;
 import android.util.SparseArray;
 import android.view.View;
@@ -11,44 +10,55 @@ import android.view.animation.Interpolator;
 import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 
 /**
  * 动画构建器
  * @author Cqray
- * @date 2021/4/7 11:31
  */
+@Accessors(prefix = "m", chain = true, fluent = true)
 public final class AnimatorBuilder {
     /** 动画对象 **/
     private ViewAnimator mAnimator;
     /** 动画开始前延时时间 **/
+    @Setter
     private int mDelay = 0;
     /** 动画时间 **/
+    @Setter
     private int mDuration = 500;
     /** 重复次数 **/
+    @Setter
     private int mRepeatCount = 0;
     /** 重复模式 **/
+    @Setter
     private RepeatMode mRepeatMode = RepeatMode.RESTART;
     /** 插值器 **/
+    @Setter
     private Interpolator mInterpolator;
     /** 是否是随后动画 **/
     private boolean mPlayThen;
     /** 控件列表 **/
+    @Getter
     private List<View> mViews;
-
+    /** 控件属性值集合 **/
     private Map<View, SparseArray<PropertyValuesHolder>> mHolderMap;
 
     AnimatorBuilder(ViewAnimator animator, boolean playThen, @NonNull View... views) {
         mAnimator = animator;
         mPlayThen = playThen;
-        mViews = new ArrayList<>();
-        mHolderMap = new HashMap<>();
+        mViews = Collections.synchronizedList(new ArrayList<>());
+        mHolderMap = new ConcurrentHashMap<>();
         for (View view : views) {
             if (view != null) {
                 mViews.add(view);
-                mHolderMap.put(view, new SparseArray<PropertyValuesHolder>());
+                mHolderMap.put(view, new SparseArray<>());
             }
         }
     }
@@ -70,39 +80,6 @@ public final class AnimatorBuilder {
     @NonNull
     public AnimatorBuilder playThen(@NonNull View... targets) {
         return mAnimator.playThen(targets);
-    }
-
-    /**
-     * 动画时长
-     * @param duration 默认500ms
-     */
-    public AnimatorBuilder duration(int duration) {
-        mDuration = duration;
-        return this;
-    }
-
-    /**
-     * 动画播放前延时
-     * @param delay 默认0ms
-     */
-    public AnimatorBuilder delay(int delay) {
-        mDelay = delay;
-        return this;
-    }
-
-    public AnimatorBuilder repeatCount(int value) {
-        mRepeatCount = value;
-        return this;
-    }
-
-    public AnimatorBuilder repeatMode(RepeatMode mode) {
-        mRepeatMode = mode;
-        return this;
-    }
-
-    public AnimatorBuilder interpolator(Interpolator interpolator) {
-        mInterpolator = interpolator;
-        return this;
     }
 
     @NonNull
@@ -221,52 +198,40 @@ public final class AnimatorBuilder {
     }
 
     public AnimatorBuilder rollLeftIn() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(0, 1).rotation(-120, 0);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationX, -view.getWidth(), 0);
-                }
+        mAnimator.post(() -> {
+            alpha(0, 1).rotation(-120, 0);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationX, -view.getWidth(), 0);
             }
         });
         return this;
     }
 
     public AnimatorBuilder rollRightIn() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(0, 1).rotation(120, 0);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationX, view.getWidth(), 0);
-                }
+        mAnimator.post(() -> {
+            alpha(0, 1).rotation(120, 0);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationX, view.getWidth(), 0);
             }
         });
         return this;
     }
 
     public AnimatorBuilder rollLeftOut() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(1, 0).rotation(0, -120);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationX, 0, -view.getWidth());
-                }
+        mAnimator.post(() -> {
+            alpha(1, 0).rotation(0, -120);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationX, 0, -view.getWidth());
             }
         });
         return this;
     }
 
     public AnimatorBuilder rollRightOut() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(1, 0).rotation(0, 120);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationX, 0, view.getWidth());
-                }
+        mAnimator.post(() -> {
+            alpha(1, 0).rotation(0, 120);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationX, 0, view.getWidth());
             }
         });
         return this;
@@ -288,16 +253,13 @@ public final class AnimatorBuilder {
     }
 
     public AnimatorBuilder standUp() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                for (View view : mViews) {
-                    float x = view.getWidth() / 2f;
-                    float y = view.getHeight();
-                    ofFloat(view, AnimatorType.rotationX, 55, -30, 15, -15, 0);
-                    ofFloat(view, AnimatorType.pivotX, x, x, x, x, x);
-                    ofFloat(view, AnimatorType.pivotY, y, y, y, y, y);
-                }
+        mAnimator.post(() -> {
+            for (View view : mViews) {
+                float x = view.getWidth() / 2f;
+                float y = view.getHeight();
+                ofFloat(view, AnimatorType.rotationX, 55, -30, 15, -15, 0);
+                ofFloat(view, AnimatorType.pivotX, x, x, x, x, x);
+                ofFloat(view, AnimatorType.pivotY, y, y, y, y, y);
             }
         });
         return this;
@@ -317,32 +279,26 @@ public final class AnimatorBuilder {
     }
 
     public AnimatorBuilder wave() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                for (View view : mViews) {
-                    float x = view.getWidth() / 2f;
-                    float y = view.getHeight();
-                    ofFloat(view, AnimatorType.rotation, 12, -12, 3, -3, 0);
-                    ofFloat(view, AnimatorType.pivotX, x, x, x, x, x);
-                    ofFloat(view, AnimatorType.pivotY, y, y, y, y, y);
-                }
+        mAnimator.post(() -> {
+            for (View view : mViews) {
+                float x = view.getWidth() / 2f;
+                float y = view.getHeight();
+                ofFloat(view, AnimatorType.rotation, 12, -12, 3, -3, 0);
+                ofFloat(view, AnimatorType.pivotX, x, x, x, x, x);
+                ofFloat(view, AnimatorType.pivotY, y, y, y, y, y);
             }
         });
         return this;
     }
 
     public AnimatorBuilder wobble() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                for (View view : mViews) {
-                    float width = view.getWidth();
-                    float one = width / 100.0f;
-                    ofFloat(view, AnimatorType.translationX, 0 * one, -25 * one, 20 * one,
-                            -15 * one, 10 * one, -5 * one, 0 * one, 0);
-                    ofFloat(view, AnimatorType.rotation, 0, -5, 3, -3, 2, -1, 0);
-                }
+        mAnimator.post(() -> {
+            for (View view : mViews) {
+                float width = view.getWidth();
+                float one = width / 100.0f;
+                ofFloat(view, AnimatorType.translationX, 0 * one, -25 * one, 20 * one,
+                        -15 * one, 10 * one, -5 * one, 0 * one, 0);
+                ofFloat(view, AnimatorType.rotation, 0, -5, 3, -3, 2, -1, 0);
             }
         });
         return this;
@@ -413,104 +369,80 @@ public final class AnimatorBuilder {
     }
 
     public AnimatorBuilder slideLeftIn() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(0, 1);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationX, -view.getRight(), 0);
-                }
+        mAnimator.post(() -> {
+            alpha(0, 1);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationX, -view.getRight(), 0);
             }
         });
         return this;
     }
 
     public AnimatorBuilder slideLeftOut() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(1, 0);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationX, 0, -view.getRight());
-                }
+        mAnimator.post(() -> {
+            alpha(1, 0);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationX, 0, -view.getRight());
             }
         });
         return this;
     }
 
     public AnimatorBuilder slideRightIn() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(0, 1);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationX, view.getRight(), 0);
-                }
+        mAnimator.post(() -> {
+            alpha(0, 1);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationX, view.getRight(), 0);
             }
         });
         return this;
     }
 
     public AnimatorBuilder slideRightOut() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(1, 0);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationX, 0, view.getRight());
-                }
+        mAnimator.post(() -> {
+            alpha(1, 0);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationX, 0, view.getRight());
             }
         });
         return this;
     }
 
     public AnimatorBuilder slideTopIn() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(0, 1);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationY, -view.getBottom(), 0);
-                }
+        mAnimator.post(() -> {
+            alpha(0, 1);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationY, -view.getBottom(), 0);
             }
         });
         return this;
     }
 
     public AnimatorBuilder slideTopOut() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(1, 0);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationY, 0, -view.getBottom());
-                }
+        mAnimator.post(() -> {
+            alpha(1, 0);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationY, 0, -view.getBottom());
             }
         });
         return this;
     }
 
     public AnimatorBuilder slideBottomIn() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(0, 1);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationY, view.getBottom(), 0);
-                }
+        mAnimator.post(() -> {
+            alpha(0, 1);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationY, view.getBottom(), 0);
             }
         });
         return this;
     }
 
     public AnimatorBuilder slideBottomOut() {
-        mAnimator.post(new Runnable() {
-            @Override
-            public void run() {
-                alpha(1, 0);
-                for (View view : mViews) {
-                    ofFloat(view, AnimatorType.translationY, 0, view.getBottom());
-                }
+        mAnimator.post(() -> {
+            alpha(1, 0);
+            for (View view : mViews) {
+                ofFloat(view, AnimatorType.translationY, 0, view.getBottom());
             }
         });
         return this;
@@ -532,9 +464,13 @@ public final class AnimatorBuilder {
         return mPlayThen;
     }
 
+    /**
+     * 生成属性动画集合
+     * @param delay 动画延时
+     */
     @NonNull
-    protected List<ObjectAnimator> getAnimators(int delay) {
-        List<ObjectAnimator> animators = new ArrayList<>();
+    List<ObjectAnimator> generateAnimators(int delay) {
+        List<ObjectAnimator> animators = Collections.synchronizedList(new ArrayList<>());
         for (View view : mViews) {
             SparseArray<PropertyValuesHolder> array = mHolderMap.get(view);
             assert array != null;
@@ -548,8 +484,7 @@ public final class AnimatorBuilder {
                 animator.setDuration(mDuration);
                 animator.setStartDelay(mDelay + delay);
                 animator.setRepeatCount(mRepeatCount);
-                animator.setRepeatMode(mRepeatMode == RepeatMode.RESTART ?
-                        ValueAnimator.RESTART : ValueAnimator.REVERSE);
+                animator.setRepeatMode(mRepeatMode.mCode);
                 if (mInterpolator != null) {
                     animator.setInterpolator(mInterpolator);
                 }
@@ -559,7 +494,13 @@ public final class AnimatorBuilder {
         return animators;
     }
 
-    private AnimatorBuilder ofFloat(View view, AnimatorType type, float... values) {
+    /**
+     * 生成动画过程中需要操作的属性和对应的值
+     * @param view 对应控件
+     * @param type 动画类型
+     * @param values 对应的值
+     */
+    AnimatorBuilder ofFloat(View view, AnimatorType type, float... values) {
         if (view == null) {
             for (View v : mViews) {
                 SparseArray<PropertyValuesHolder> array = mHolderMap.get(v);
@@ -575,7 +516,7 @@ public final class AnimatorBuilder {
     }
 
     @NonNull
-    private float[] dp2px(@NonNull float... values) {
+    float[] dp2px(@NonNull float... values) {
         float[] result = new float[values.length];
         float density = Resources.getSystem().getDisplayMetrics().density;
         for (int i = 0; i < values.length; i++) {

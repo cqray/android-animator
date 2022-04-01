@@ -20,12 +20,30 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                ViewAnimator.playOn(MainActivity.this, view)
-                        .slideBottomIn()
-                        .duration(1000)
-                        .playThen(view)
-                        .slideTopIn()
-                        .start();
+               // new Thread(() -> {
+
+                    ViewAnimator animator = ViewAnimator.playOn(MainActivity.this, view)
+                            //.slideBottomIn()
+                            .slideTopIn()
+                            .duration(1000)
+                            .convert();
+                            //.playThen(view)
+                            //.slideTopIn()
+                            animator.start();
+
+                            animator.getDuration(() -> {
+
+                            });
+//                            new Thread(()-> {
+//                                try {
+//                                    Thread.sleep(100);
+//                                } catch (InterruptedException e) {
+//                                    e.printStackTrace();
+//                                }
+//                                animator.cancel();
+//                            });
+//                animator.cancel();
+               // }).start();
             }
         });
     }

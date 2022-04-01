@@ -3,9 +3,9 @@ package cn.cqray.android.anim;
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
-import android.util.Log;
+
+import android.annotation.SuppressLint;
 import android.view.View;
-import android.view.ViewTreeObserver;
 import android.view.animation.Interpolator;
 
 import androidx.annotation.MainThread;
@@ -13,30 +13,36 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleEventObserver;
-import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 
 /**
  * 控件动画
  * @author Cqray
- * @date 2021/4/7 11:55
  */
-public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
+@Accessors(prefix = "m", chain = true, fluent = true)
+public class ViewAnimator {
 
     /** 插值器 **/
+    @Setter
     private Interpolator mInterpolator;
     /** 动画集合 **/
     private AnimatorSet mAnimatorSet;
-    /** 动画构建器集合 **/
-    private List<AnimatorBuilder> mBuilderList;
-    /** 整个动画的监听事件 **/
-    private List<Animator.AnimatorListener> mAnimatorListeners;
     /** 需要执行的事件 **/
-    private LinkedList<Runnable> mActionList;
+    private final List<Runnable> mActionList;
+    /** 动画构建器集合 **/
+    @Getter
+    private final List<AnimatorBuilder> mBuilderList;
+    /** 整个动画的监听事件 **/
+    @Getter
+    private final List<AnimatorListener> mAnimatorListeners;
 
     /**
      * 初始化动画对象（需手动管理动画生命周期）
@@ -63,19 +69,16 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
         return ab;
     }
 
-    private ViewAnimator(LifecycleOwner owner) {
-        mBuilderList = new ArrayList<>();
-        mAnimatorListeners = new ArrayList<>();
-        mActionList = new LinkedList<>();
+    private ViewAnimator(@Nullable LifecycleOwner owner) {
+        mActionList = Collections.synchronizedList(new ArrayList<>());
+        mBuilderList = Collections.synchronizedList(new ArrayList<>());
+        mAnimatorListeners = Collections.synchronizedList(new ArrayList<>());
         if (owner != null) {
-            owner.getLifecycle().addObserver(this);
-        }
-    }
-
-    @Override
-    public void onStateChanged(@NonNull LifecycleOwner source, @NonNull Lifecycle.Event event) {
-        if (event == Lifecycle.Event.ON_DESTROY) {
-            cancel();
+            owner.getLifecycle().addObserver((LifecycleEventObserver) (source, event) -> {
+                if (event == Lifecycle.Event.ON_DESTROY) {
+                    cancel();
+                }
+            });
         }
     }
 
@@ -93,16 +96,7 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
         return ab;
     }
 
-    public ViewAnimator interpolator(Interpolator interpolator) {
-        mInterpolator = interpolator;
-        return this;
-    }
-
-    public List<AnimatorBuilder> getAnimationBuilders() {
-        return mBuilderList;
-    }
-
-    public ViewAnimator addAnimatorListener(Animator.AnimatorListener listener) {
+    public ViewAnimator addAnimatorListener(AnimatorListener listener) {
         if (listener != null) {
             mAnimatorListeners.add(listener);
         }
@@ -110,13 +104,8 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
     }
 
     public void start() {
-        post(new Runnable() {
-            @Override
-            public void run() {
-                startAnimator();
-            }
-        });
-        doAfterViewReady();
+        post(this::startAnimator);
+        doWhenViewReady();
     }
 
     public void cancel() {
@@ -138,7 +127,7 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
      * @return 动画总时长
      */
     public int getDuration() {
-        int [] duration = new int[2];
+        int[] duration = new int[2];
         // 正常动画
         for (AnimatorBuilder ab : mBuilderList) {
             if (ab.isPlayThen()) {
@@ -154,11 +143,24 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
         return duration[1];
     }
 
+    @SuppressLint("NewApi")
+    public void getDuration(Runnable consumer) {
+        post(() -> {
+            //if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                //consumer.accept(getDuration());
+            //}
+        });
+    }
+
     void post(Runnable r) {
         mActionList.add(r);
     }
 
-    private void startAnimator() {
+    /**
+     * 开始动画
+     * <p>整合各个控件的属性动画</p>
+     */
+    void startAnimator() {
         cancel();
         mAnimatorSet = new AnimatorSet();
         // 动画用时,[0]已用时，[1]新动画将用时临时值
@@ -169,12 +171,12 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
             if (ab.isPlayThen()) {
                 // PlayThen动动画已用时从[1]取，获取之前PlayOn、PlayWith中最大已用时
                 duration[0] = duration[1];
-                animators.addAll(ab.getAnimators(duration[0]));
+                animators.addAll(ab.generateAnimators(duration[0]));
                 duration[0] += ab.getDuration() + ab.getDelay();
                 duration[1] = duration[0];
             } else {
                 // PlayOn、PlayWith，动画前延时为之前动画用时
-                animators.addAll(ab.getAnimators(duration[0]));
+                animators.addAll(ab.generateAnimators(duration[0]));
                 // 新动画将用时临时值
                 duration[1] = Math.max(duration[0] + ab.getDuration() + ab.getDelay(), duration[1]);
             }
@@ -190,22 +192,26 @@ public class ViewAnimator implements LifecycleEventObserver, LifecycleObserver {
         mAnimatorSet.start();
     }
 
-    private void doAfterViewReady() {
-        final View view = mBuilderList.get(0).getViews().get(0);
-        if (view.getMeasuredWidth() == 0 && view.getMeasuredHeight() == 0) {
-            view.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-                @Override
-                public boolean onPreDraw() {
-                    while (!mActionList.isEmpty()) {
-                        mActionList.removeFirst().run();
-                    }
-                    view.getViewTreeObserver().removeOnPreDrawListener(this);
-                    return false;
+    /**
+     * 控件准备完毕才执行任务
+     */
+    void doWhenViewReady() {
+        if (!mBuilderList.isEmpty()) {
+            List<View> views = mBuilderList.get(0).views();
+            if (views.isEmpty()) {
+                return;
+            }
+            Runnable runnable = () -> {
+                while (!mActionList.isEmpty()) {
+                    mActionList.remove(0).run();
                 }
-            });
-        } else {
-            while (!mActionList.isEmpty()) {
-                mActionList.removeFirst().run();
+            };
+            View view = views.get(0);
+            boolean notMeasured = view.getMeasuredWidth() == 0 && view.getMeasuredHeight() == 0;
+            if (notMeasured) {
+                view.post(runnable);
+            } else {
+                runnable.run();
             }
         }
     }
