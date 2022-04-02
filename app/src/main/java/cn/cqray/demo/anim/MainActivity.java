@@ -1,50 +1,49 @@
 package cn.cqray.demo.anim;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.os.Bundle;
 import android.view.View;
+
+import java.util.Arrays;
 
 import cn.cqray.android.anim.ViewAnimator;
 
 public class MainActivity extends AppCompatActivity {
 
+    RecyclerView rv;
+
+    String[] list = new String[] {
+            "bounce", "bounceIn", "bounceOut",
+            "fadeIn", "fadeOut", "flash", "pulse",
+            "rollLeftIn", "rollRightIn", "rollLeftOut", "rollRightOut",
+            "rubber", "shakeX", "shakeY", "standUp", "swing", "tada", "wave", "wobble",
+
+    };
+    String[] list2 = new String[] {
+            "zoomIn", "zoomOut",
+            "fall", "fallRotate",
+            "flipX", "flipX2", "flipY", "flipY2", "newsPaper",
+            "slitX", "slitY", "jelly",
+            "slideLeftIn", "slideLeftOut", "slideRightIn", "slideRightOut",
+            "slideTopIn", "slideTopOut", "slideBottomIn", "slideBottomOut"
+    };
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        rv = findViewById(R.id.rv);
+        rv.setLayoutManager(new GridLayoutManager(this, 3));
+        AnimatorAdapter adapter = new AnimatorAdapter();
+        adapter.setList(Arrays.asList(list2));
+        rv.setAdapter(adapter);
 
-        final View view = findViewById(R.id.tv);
 
-        view.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        findViewById(R.id.tv).setOnClickListener(v -> adapter.startAnimator());
 
-               // new Thread(() -> {
-
-                    ViewAnimator animator = ViewAnimator.playOn(MainActivity.this, view)
-                            //.slideBottomIn()
-                            .slideTopIn()
-                            .duration(1000)
-                            .convert();
-                            //.playThen(view)
-                            //.slideTopIn()
-                            animator.start();
-
-                            animator.getDuration(() -> {
-
-                            });
-//                            new Thread(()-> {
-//                                try {
-//                                    Thread.sleep(100);
-//                                } catch (InterruptedException e) {
-//                                    e.printStackTrace();
-//                                }
-//                                animator.cancel();
-//                            });
-//                animator.cancel();
-               // }).start();
-            }
-        });
     }
 }

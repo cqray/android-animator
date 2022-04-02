@@ -3,7 +3,8 @@
 ### 介绍
 简单的动画动画封装
 
-![](/animator.gif)
+![](/img/animator1.gif)
+![](/img/animator2.gif)
 
 ### 引入
 
@@ -20,7 +21,7 @@ allprojects {
 #### 第二步
 添加依赖
 ```
-implementation 'com.github.cqray:android-animator:0.5.7'
+implementation 'com.github.cqray:android-animator:0.5.8'
 ```
 
 ### 如何使用
@@ -38,4 +39,4 @@ ViewAnimator.playOn(lifecyclerOwner, view)
         .slideLeftIn()
         .start();
 ```
-更多使用请阅读源码。
+ViewAnimator可在子线程使用，更多使用请阅读源码。

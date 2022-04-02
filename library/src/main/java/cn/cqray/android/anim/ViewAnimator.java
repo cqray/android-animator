@@ -1,10 +1,10 @@
 package cn.cqray.android.anim;
 
-import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 
-import android.annotation.SuppressLint;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.animation.Interpolator;
 
@@ -43,6 +43,10 @@ public class ViewAnimator {
     /** 整个动画的监听事件 **/
     @Getter
     private final List<AnimatorListener> mAnimatorListeners;
+    /** 生命周期管理对象 **/
+    private final LifecycleOwner mLifecycleOwner;
+    /** Handler句柄 **/
+    private Handler mHandler;
 
     /**
      * 初始化动画对象（需手动管理动画生命周期）
@@ -73,13 +77,7 @@ public class ViewAnimator {
         mActionList = Collections.synchronizedList(new ArrayList<>());
         mBuilderList = Collections.synchronizedList(new ArrayList<>());
         mAnimatorListeners = Collections.synchronizedList(new ArrayList<>());
-        if (owner != null) {
-            owner.getLifecycle().addObserver((LifecycleEventObserver) (source, event) -> {
-                if (event == Lifecycle.Event.ON_DESTROY) {
-                    cancel();
-                }
-            });
-        }
+        mLifecycleOwner = owner;
     }
 
     @NonNull
@@ -103,15 +101,21 @@ public class ViewAnimator {
         return this;
     }
 
-    public void start() {
+    public synchronized void start() {
+        cancel();
+        mHandler = new Handler(Looper.getMainLooper());
         post(this::startAnimator);
         doWhenViewReady();
     }
 
-    public void cancel() {
+    public synchronized void cancel() {
         if (mAnimatorSet != null && mAnimatorSet.isRunning()) {
             mAnimatorSet.cancel();
             mAnimatorSet = null;
+        }
+        if (mHandler != null) {
+            mHandler.removeCallbacksAndMessages(null);
+            mHandler = null;
         }
     }
 
@@ -123,37 +127,35 @@ public class ViewAnimator {
     }
 
     /**
-     * 获取动画总时长，需要在start()后调用才有值
-     * @return 动画总时长
+     * 获取动画总时长
      */
-    public int getDuration() {
-        int[] duration = new int[2];
-        // 正常动画
-        for (AnimatorBuilder ab : mBuilderList) {
-            if (ab.isPlayThen()) {
-                // PlayThen动动画已用时从[1]取，获取之前PlayOn、PlayWith中最大已用时
-                duration[0] = duration[1];
-                duration[0] += ab.getDuration() + ab.getDelay();
-                duration[1] = duration[0];
-            } else {
-                // 新动画将用时临时值
-                duration[1] = Math.max(duration[0] + ab.getDuration() + ab.getDelay(), duration[1]);
-            }
-        }
-        return duration[1];
-    }
-
-    @SuppressLint("NewApi")
-    public void getDuration(Runnable consumer) {
+    public void getDuration(Callback callback) {
         post(() -> {
-            //if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                //consumer.accept(getDuration());
-            //}
+            if (callback != null) {
+                int[] duration = new int[2];
+                // 正常动画
+                for (AnimatorBuilder ab : mBuilderList) {
+                    if (ab.isPlayThen()) {
+                        // PlayThen动动画已用时从[1]取，获取之前PlayOn、PlayWith中最大已用时
+                        duration[0] = duration[1];
+                        duration[0] += ab.getDuration() + ab.getDelay();
+                        duration[1] = duration[0];
+                    } else {
+                        // 新动画将用时临时值
+                        duration[1] = Math.max(duration[0] + ab.getDuration() + ab.getDelay(), duration[1]);
+                    }
+                }
+                callback.onGet(duration[1]);
+            }
         });
     }
 
-    void post(Runnable r) {
-        mActionList.add(r);
+    /**
+     * 将任务加入堆栈
+     * @param task 任务
+     */
+    void post(Runnable task) {
+        mActionList.add(task);
     }
 
     /**
@@ -161,7 +163,6 @@ public class ViewAnimator {
      * <p>整合各个控件的属性动画</p>
      */
     void startAnimator() {
-        cancel();
         mAnimatorSet = new AnimatorSet();
         // 动画用时,[0]已用时，[1]新动画将用时临时值
         int [] duration = new int[2];
@@ -186,10 +187,29 @@ public class ViewAnimator {
             mAnimatorSet.playTogether(animatorArray);
         }
         mAnimatorSet.setInterpolator(mInterpolator);
-        for (Animator.AnimatorListener listener : mAnimatorListeners) {
+        // 动画监听
+        for (AnimatorListener listener : mAnimatorListeners) {
             mAnimatorSet.addListener(listener);
         }
-        mAnimatorSet.start();
+        // LifecycleOwner生命周期监听
+        LifecycleEventObserver observer = (source, event) -> {
+            if (event == Lifecycle.Event.ON_DESTROY) {
+                cancel();
+            }
+        };
+        // 开始动画任务
+        Runnable runnable = () -> {
+            mAnimatorSet.start();
+            if (mLifecycleOwner != null) {
+                mLifecycleOwner.getLifecycle().addObserver(observer);
+            }
+        };
+        // 实现可以在任意线程运行
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            runnable.run();
+        } else {
+            mHandler.post(runnable);
+        }
     }
 
     /**
@@ -197,22 +217,38 @@ public class ViewAnimator {
      */
     void doWhenViewReady() {
         if (!mBuilderList.isEmpty()) {
+            // 判断是否有动画和控件
             List<View> views = mBuilderList.get(0).views();
             if (views.isEmpty()) {
                 return;
             }
+            // 运行所有缓存任务
             Runnable runnable = () -> {
                 while (!mActionList.isEmpty()) {
                     mActionList.remove(0).run();
                 }
             };
             View view = views.get(0);
+            // 是否还没有测量完毕
             boolean notMeasured = view.getMeasuredWidth() == 0 && view.getMeasuredHeight() == 0;
             if (notMeasured) {
+                // 未测量则测量完毕执行
                 view.post(runnable);
-            } else {
+            } else if (Looper.myLooper() == Looper.getMainLooper()) {
+                // 测量完毕，在主线程直接执行
                 runnable.run();
+            } else {
+                // 子线程执行
+                mHandler.post(runnable);
             }
         }
+    }
+
+    /**
+     * 获取动画时长回调
+     */
+    public interface Callback {
+
+        void onGet(int duration);
     }
 }

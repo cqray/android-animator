@@ -6,7 +6,7 @@ android {
     defaultConfig {
         minSdkVersion 11
         targetSdkVersion 30
-        versionCode 57
+        versionCode 58
         versionName createVersionName(versionCode)
 
         consumerProguardFiles "consumer-rules.pro"
@@ -28,7 +28,6 @@ android {
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     api 'androidx.appcompat:appcompat:1.3.1'
-
     // noinspection AnnotationProcessorOnCompilePath
     compileOnly 'org.projectlombok:lombok:1.18.20'
     annotationProcessor 'org.projectlombok:lombok:1.18.20'
