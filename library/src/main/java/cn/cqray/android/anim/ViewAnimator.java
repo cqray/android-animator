@@ -27,7 +27,7 @@ import lombok.experimental.Accessors;
  * 控件动画
  * @author Cqray
  */
-@Accessors(prefix = "m", chain = true, fluent = true)
+@Accessors(prefix = "m", chain = true)
 public class ViewAnimator {
 
     /** 插值器 **/
@@ -186,7 +186,10 @@ public class ViewAnimator {
         if (animatorArray.length > 0) {
             mAnimatorSet.playTogether(animatorArray);
         }
-        mAnimatorSet.setInterpolator(mInterpolator);
+        // 设置插值器
+        if (mInterpolator != null) {
+            mAnimatorSet.setInterpolator(mInterpolator);
+        }
         // 动画监听
         for (AnimatorListener listener : mAnimatorListeners) {
             mAnimatorSet.addListener(listener);

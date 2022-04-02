@@ -9,6 +9,7 @@ import android.view.View;
 
 import java.util.Arrays;
 
+import cn.cqray.android.anim.AnimatorBuilder;
 import cn.cqray.android.anim.ViewAnimator;
 
 public class MainActivity extends AppCompatActivity {
@@ -44,6 +45,5 @@ public class MainActivity extends AppCompatActivity {
 
 
         findViewById(R.id.tv).setOnClickListener(v -> adapter.startAnimator());
-
     }
 }
