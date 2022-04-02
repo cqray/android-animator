@@ -39,7 +39,7 @@ public class ViewAnimator {
     private final List<Runnable> mActionList;
     /** 动画构建器集合 **/
     @Getter
-    private final List<AnimatorBuilder> mBuilderList;
+    private final List<AnimatorBuilder> mAnimatorBuilders;
     /** 整个动画的监听事件 **/
     @Getter
     private final List<AnimatorListener> mAnimatorListeners;
@@ -69,13 +69,13 @@ public class ViewAnimator {
     public static AnimatorBuilder playOn(@Nullable LifecycleOwner owner, @NonNull View... targets) {
         ViewAnimator va = new ViewAnimator(owner);
         AnimatorBuilder ab = new AnimatorBuilder(va, false, targets);
-        va.mBuilderList.add(ab);
+        va.mAnimatorBuilders.add(ab);
         return ab;
     }
 
     private ViewAnimator(@Nullable LifecycleOwner owner) {
         mActionList = Collections.synchronizedList(new ArrayList<>());
-        mBuilderList = Collections.synchronizedList(new ArrayList<>());
+        mAnimatorBuilders = Collections.synchronizedList(new ArrayList<>());
         mAnimatorListeners = Collections.synchronizedList(new ArrayList<>());
         mLifecycleOwner = owner;
     }
@@ -83,14 +83,14 @@ public class ViewAnimator {
     @NonNull
     public AnimatorBuilder playWith(@NonNull View... targets) {
         AnimatorBuilder ab = new AnimatorBuilder(this, false, targets);
-        mBuilderList.add(ab);
+        mAnimatorBuilders.add(ab);
         return ab;
     }
 
     @NonNull
     public AnimatorBuilder playThen(@NonNull View... targets) {
         AnimatorBuilder ab = new AnimatorBuilder(this, true, targets);
-        mBuilderList.add(ab);
+        mAnimatorBuilders.add(ab);
         return ab;
     }
 
@@ -134,7 +134,7 @@ public class ViewAnimator {
             if (callback != null) {
                 int[] duration = new int[2];
                 // 正常动画
-                for (AnimatorBuilder ab : mBuilderList) {
+                for (AnimatorBuilder ab : mAnimatorBuilders) {
                     if (ab.isPlayThen()) {
                         // PlayThen动动画已用时从[1]取，获取之前PlayOn、PlayWith中最大已用时
                         duration[0] = duration[1];
@@ -168,7 +168,7 @@ public class ViewAnimator {
         int [] duration = new int[2];
         List<ObjectAnimator> animators = new ArrayList<>();
         // 正常动画
-        for (AnimatorBuilder ab : mBuilderList) {
+        for (AnimatorBuilder ab : mAnimatorBuilders) {
             if (ab.isPlayThen()) {
                 // PlayThen动动画已用时从[1]取，获取之前PlayOn、PlayWith中最大已用时
                 duration[0] = duration[1];
@@ -216,9 +216,9 @@ public class ViewAnimator {
      * 控件准备完毕才执行任务
      */
     void doWhenViewReady() {
-        if (!mBuilderList.isEmpty()) {
+        if (!mAnimatorBuilders.isEmpty()) {
             // 判断是否有动画和控件
-            List<View> views = mBuilderList.get(0).views();
+            List<View> views = mAnimatorBuilders.get(0).views();
             if (views.isEmpty()) {
                 return;
             }

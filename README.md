@@ -21,7 +21,7 @@ allprojects {
 #### 第二步
 添加依赖
 ```
-implementation 'com.github.cqray:android-animator:0.5.8'
+implementation 'com.github.cqray:android-animator:latest'
 ```
 
 ### 如何使用
